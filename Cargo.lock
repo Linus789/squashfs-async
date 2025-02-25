@@ -468,7 +468,8 @@ dependencies = [
 [[package]]
 name = "fuser-async"
 version = "0.1.1"
-source = "git+https://github.com/cpg314/fuser-async?tag=v0.1.1#787176e475e3f8228f53e7f160c6cebd3a18ebd5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42c87ca06a861a026a72045c8badc54a50a0fd55f21a311b872cdf9fbf9a07b8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1217,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "squashfs-async"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-compression",

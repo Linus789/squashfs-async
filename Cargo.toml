@@ -2,9 +2,10 @@
 name = "squashfs-async"
 description = "Parsing and reading of SquashFS archives, on top of any implementor of the tokio::io::AsyncRead and tokio::io::AsyncSeek traits."
 authors = ["cpg <44120267+cpg314@users.noreply.github.com>"]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
+repository = "https://github.com/cpg314/squashfs-async"
 readme = "README.md"
 category = ["filesystem"]
 include = ["src/**/*", "README.md"]
