@@ -4,8 +4,7 @@ implementor of the [`tokio::io::AsyncRead`] and [`tokio::io::AsyncSeek`] traits.
 More precisely, this crate provides:
 
 - A [`SquashFs`] structure to read SquashFS archives on top of any asynchronous reader.
-- An implementation of [`fuser_async::Filesystem`] on [`SquashFs`], allowing to easily build [FUSE](https://en.wikipedia.org/wiki/Filesystem_in_Userspace) filesystems using SquashFS archives.
-- A `squashfuse-rs` binary for mounting SquashFS images via FUSE, with async IO and multithreaded decompression.
+- An implementation of [`Filesystem`] on [`SquashFs`], allowing to easily build [FUSE](https://en.wikipedia.org/wiki/Filesystem_in_Userspace) filesystems using SquashFS archives.
 
 ## Motivation: multithreaded/async SquashFS reading
 
@@ -19,29 +18,6 @@ To the author's understanding, `squashfuse` [uses a single-threaded FUSE loop](h
 ### Example: squashfs-on-S3
 
 This crate has been used to implement a FUSE filesystem providing transparent access to squashfs images hosted on an S3 API, using the S3 example in [`fuser_async`]. With a local [MinIO](https://github.com/minio/minio) server, throughput of 365 MB/s (resp. 680 MB/s) are achieved for sequential (resp. parallel) access to zstd1-compressed images with 20 MB files.
-
-## `squashfuse-rs` binary
-
-The `squashfuse-rs` binary is an example that implements an analogue to `squashfuse` using this crate, allowing to mount squashfs images via FUSE.
-
-```console
-$ squashfuse-rs --help
-USAGE:
-squashfuse-rs [OPTIONS] <INPUT> <MOUNTPOINT>
-
-ARGS:
-   <INPUT>         Input squashfs image
-   <MOUNTPOINT>    Mountpoint
-
-OPTIONS:
-       --backend <BACKEND>              [default: memmap] [possible values: tokio, async-fs, memmap]
-       --cache-mb <CACHE_MB>            Cache size (MB) [default: 100]
-   -d, --debug
-       --direct-limit <DIRECT_LIMIT>    Limit (B) for fetching small files with direct access [default: 0]
-   -h, --help                           Print help information
-       --readers <READERS>              Number of readers [default: 4]
-
-```
 
 ## Benchmarks
 

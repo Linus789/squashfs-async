@@ -143,7 +143,7 @@ pub mod outof {
     /// Compute and display fractions.
     ///
     /// ```
-    /// use fuser_async::utils::OutOf;
+    /// use crate::utils::OutOf;
     /// let r = OutOf::new(1, 3);
     /// assert_eq!(format!("{:.1}", r), "33.3%");
     /// assert_eq!(format!("{:.0}", r), "33%");

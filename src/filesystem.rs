@@ -109,21 +109,21 @@ impl DirEntry {
 #[async_trait::async_trait]
 pub trait Filesystem {
     type Error: Into<crate::error::Error>;
-    /// Close filesystem. See also [`fuser::Filesystem::destroy`].
+    /// Close filesystem. See also [`Filesystem::destroy`].
     async fn destroy(&mut self) -> Result<(), Self::Error> {
         Ok(())
     }
-    /// Lookup an entry by name in a directory. See also [`fuser::Filesystem::lookup`].
+    /// Lookup an entry by name in a directory. See also [`Filesystem::lookup`].
     async fn lookup(&self, parent: u64, name: &OsStr) -> Result<FileAttr, Self::Error>;
-    /// Open a file and get a handle. See also [`fuser::Filesystem::open`].
+    /// Open a file and get a handle. See also [`Filesystem::open`].
     async fn open(&self, _ino: u64, _flags: i32) -> Result<u64, Self::Error> {
         Ok(0)
     }
-    /// Release a file handle. See also [`fuser::Filesystem::release`].
+    /// Release a file handle. See also [`Filesystem::release`].
     async fn release(&self, _ino: u64, _fh: u64) -> Result<(), Self::Error> {
         Ok(())
     }
-    /// Get attributes on an entry. See also [`fuser::Filesystem::getattr`].
+    /// Get attributes on an entry. See also [`Filesystem::getattr`].
     async fn getattr(&self, _ino: u64) -> Result<FileAttr, Self::Error>;
     /// Set attributes. Currently only supports setting the size
     async fn setattr(
@@ -136,13 +136,13 @@ pub trait Filesystem {
     /// until the returned iterator is empty. A minimum of two calls is required
     /// to be certain that the end has been reached.
     /// `offset` represents the index of the starting element.
-    /// See also [`fuser::Filesystem::readdir`].
+    /// See also [`Filesystem::readdir`].
     async fn readdir(
         &self,
         ino: u64,
         offset: u64,
     ) -> Result<Box<dyn Iterator<Item = DirEntry> + Send + Sync + '_>, Self::Error>;
-    /// Read from a file. See also [`fuser::Filesystem::read`].
+    /// Read from a file. See also [`Filesystem::read`].
     async fn read(
         &self,
         ino: u64,
@@ -150,7 +150,7 @@ pub trait Filesystem {
         offset: i64,
         size: u32,
     ) -> Result<bytes::Bytes, Self::Error>;
-    /// Write to file. See also [`fuser::Filesystem::write`].
+    /// Write to file. See also [`Filesystem::write`].
     async fn write(
         &self,
         ino: u64,
@@ -158,7 +158,7 @@ pub trait Filesystem {
         data: bytes::Bytes,
         offset: i64,
     ) -> Result<u32, Self::Error>;
-    /// Create and open a file. See also [`fuser::Filesystem::create`].
+    /// Create and open a file. See also [`Filesystem::create`].
     async fn create(
         &mut self,
         parent: u64,
@@ -167,7 +167,7 @@ pub trait Filesystem {
         umask: u32,
         flags: i32,
     ) -> Result<(FileAttr, u64), Self::Error>;
-    /// Create a directory. See also [`fuser::Filesystem::mkdir`].
+    /// Create a directory. See also [`Filesystem::mkdir`].
     async fn mkdir(&mut self, parent: u64, name: OsString) -> Result<FileAttr, Self::Error>;
     /// Get the set of inodes from the filesystem.
     ///

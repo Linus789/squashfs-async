@@ -67,7 +67,7 @@ pub struct Options {
 /// Note that the tables (inode, directory...) are fully parsed on creation and kept in memory,
 /// rather than being accessed lazily.
 ///
-/// This implements the [`fuser_async::Filesystem`] trait.
+/// This implements the [`filesystem::Filesystem`] trait.
 ///
 /// The type `R` is a [`deadpool`] pool manager for the underlying filesystem readers.
 /// See [`crate::pools`].

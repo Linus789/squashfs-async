@@ -90,7 +90,7 @@ pub fn file_attr(ino: u64, size: u64, time: std::time::SystemTime) -> FileAttr {
 }
 
 impl<R: deadpool::managed::Manager> SquashFs<R> {
-    /// Remapping to ensure that the root inode is `fuser::FUSE_ROOT_ID`
+    /// Remapping to ensure that the root inode is `filesystem::FUSE_ROOT_ID`
     fn ino_from_fuse(&self, ino: u64) -> Result<u32, Error> {
         if ino == filesystem::FUSE_ROOT_ID {
             Ok(self.root_inode)
@@ -101,7 +101,7 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
             ino.try_into().map_err(|_| Error::InvalidInode)
         }
     }
-    /// Remapping to ensure that the root inode is `fuser::FUSE_ROOT_ID`
+    /// Remapping to ensure that the root inode is `filesystem::FUSE_ROOT_ID`
     pub fn ino_to_fuse(&self, ino: u32) -> u64 {
         let fuse_root: u32 = filesystem::FUSE_ROOT_ID.try_into().unwrap();
         if ino == self.root_inode {
