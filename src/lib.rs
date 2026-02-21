@@ -1,9 +1,11 @@
 #![doc = include_str!("../README.md")]
 
+pub mod cache;
 mod data;
 mod deser;
 pub mod directory_table;
 pub mod error;
+pub mod filesystem;
 pub mod fragments;
 pub mod inodes;
 mod metadata;
@@ -24,9 +26,10 @@ use std::path::Path;
 
 use clap::Parser;
 use deadpool::managed::Pool;
-use fuser_async::cache::{DataBlockCache, IndexCache, LRUCache};
 use tokio::sync::RwLock;
 use tracing::*;
+
+use crate::cache::{DataBlockCache as _, IndexCache, LRUCache};
 
 trait_set::trait_set! {
     /// Convenience trait alias

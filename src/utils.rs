@@ -134,3 +134,65 @@ pub mod meanstd {
     meanstd_from_it!(f64, |x| !x.is_nan());
     meanstd_from_it!(u64, |_| true);
 }
+
+pub mod outof {
+    use num_traits::cast::AsPrimitive;
+    use serde::{Deserialize, Serialize};
+
+    static PERCENT_DEFAULT_DISPLAY_PRECISION: usize = 0;
+    /// Compute and display fractions.
+    ///
+    /// ```
+    /// use fuser_async::utils::OutOf;
+    /// let r = OutOf::new(1, 3);
+    /// assert_eq!(format!("{:.1}", r), "33.3%");
+    /// assert_eq!(format!("{:.0}", r), "33%");
+    /// ```
+    #[derive(Copy, Serialize, Deserialize, Clone)]
+    pub struct OutOf {
+        pub part: f64,
+        pub total: f64,
+    }
+    impl Default for OutOf {
+        fn default() -> Self {
+            Self {
+                part: 0.0,
+                total: 0.0,
+            }
+        }
+    }
+    impl AsPrimitive<f64> for OutOf {
+        fn as_(self) -> f64 {
+            self.part / self.total
+        }
+    }
+    impl OutOf {
+        pub fn new<A: AsPrimitive<f64>, B: AsPrimitive<f64>>(part: A, total: B) -> Self {
+            Self {
+                part: part.as_(),
+                total: total.as_(),
+            }
+        }
+        pub fn perc(&self) -> f64 {
+            self.part / self.total * 100.0
+        }
+        pub fn display_full(&self) -> String {
+            if self.total == 0.0 {
+                format!("{}/{}", self.part, self.total)
+            } else {
+                format!("{}/{} ({})", self.part, self.total, self)
+            }
+        }
+    }
+    impl std::fmt::Display for OutOf {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            let prec = f.precision().unwrap_or(PERCENT_DEFAULT_DISPLAY_PRECISION);
+            let ratio = self.as_();
+            if ratio.is_finite() {
+                write!(f, "{:.*}%", prec, 100.0 * ratio)
+            } else {
+                Ok(())
+            }
+        }
+    }
+}

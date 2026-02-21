@@ -1,9 +1,7 @@
 //! SquashFS reading error.
-use fuser_async::Error as ErrorFuse;
+use crate::{squashfuse, superblock::Compression};
 
-use crate::superblock::Compression;
-
-pub(crate) type CacheError = fuser_async::cache::CacheError<Box<Error>>;
+pub(crate) type CacheError = crate::cache::CacheError<Box<Error>>;
 
 /// Main error type.
 #[derive(thiserror::Error, Debug)]
@@ -55,10 +53,10 @@ pub enum Error {
     #[error("Failed to memory map file")]
     MemMap,
     #[error("{0}")]
-    Fuse(#[from] ErrorFuse),
+    Fuse(#[from] squashfuse::ErrorFuse),
 }
 
-impl From<Error> for ErrorFuse {
+impl From<Error> for squashfuse::ErrorFuse {
     fn from(source: Error) -> Self {
         match source {
             Error::FileNotFound(_) | Error::DirectoryNotFound => Self::NoFileDir,

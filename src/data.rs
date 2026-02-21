@@ -2,8 +2,6 @@
 use std::ops::DerefMut;
 
 use async_compression::tokio::bufread::{XzDecoder, ZlibDecoder, ZstdDecoder};
-use fuser_async::cache::DataBlockCache;
-use fuser_async::utils::OutOf;
 use serde::Deserialize;
 use tokio::io::{AsyncBufRead, AsyncReadExt, AsyncSeekExt, AsyncWrite};
 use tracing::*;
@@ -12,7 +10,9 @@ use super::error::DecompressError;
 use super::superblock::Compression;
 use super::Error;
 use super::SquashFs;
+use crate::cache::DataBlockCache;
 use crate::pools;
+use crate::utils::outof::OutOf;
 
 pub async fn decompress(
     mut input: impl AsyncBufRead + Unpin + Send + Sync,

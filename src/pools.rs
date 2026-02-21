@@ -2,7 +2,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use fuser_async::{FileHandle, FilesystemSSUS};
 use tokio::io::{AsyncSeekExt, BufReader};
 #[cfg(feature = "asyncfs")]
 use tokio_util::compat::{Compat, FuturesAsyncReadCompatExt};
@@ -120,29 +119,3 @@ impl LocalReadersPool for LocalReadersPoolMemMap {
 
 /// Flags for the `open` syscall
 pub type ReadFlags = i32;
-
-/// Readers from [`fuser_async::Filesystem`] file handles.
-pub struct FilePool<F: fuser_async::Filesystem>(pub F, pub u64, pub ReadFlags);
-#[async_trait::async_trait]
-impl<F: FilesystemSSUS + Clone> deadpool::managed::Manager for FilePool<F>
-where
-    F::Error: Send + Sync + std::fmt::Display + Into<Box<dyn std::error::Error + Send + Sync>>,
-{
-    type Type = BufReader<FileHandle<F>>;
-    type Error = tokio::io::Error;
-
-    async fn create(&self) -> Result<Self::Type, Self::Error> {
-        let fh = FileHandle::new(self.0.clone(), self.1, self.2)
-            .await
-            .map_err(|e| {
-                let e: Box<dyn std::error::Error + Send + Sync> = e.into();
-                tokio::io::Error::new(tokio::io::ErrorKind::Other, e)
-            })?;
-        let fh = tokio::io::BufReader::with_capacity(128 * 1024, fh);
-        Ok(fh)
-    }
-    async fn recycle(&self, f: &mut Self::Type) -> deadpool::managed::RecycleResult<Self::Error> {
-        f.seek(std::io::SeekFrom::Start(0)).await?;
-        Ok(())
-    }
-}

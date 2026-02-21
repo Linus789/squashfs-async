@@ -1,11 +1,59 @@
-//! Implementation of `fuse_async::Filesystem` on `SquashFs`.
 use std::collections::BTreeSet;
 use std::time::UNIX_EPOCH;
 
-use fuser_async::Error as ErrorFuse;
-use fuser_async::{utils::BLOCK_SIZE, DirEntry};
+use crate::{Error, SquashFs, filesystem::{self, DirEntry, FileAttr, FileType}};
 
-use crate::{Error, SquashFs};
+pub const BLOCK_SIZE: u32 = 512;
+
+#[derive(thiserror::Error, Debug)]
+pub enum ErrorFuse {
+    #[error("Not implemented")]
+    Unimplemented,
+    #[error("Not a directory")]
+    NotDirectory,
+    #[error("No such file or directory")]
+    NoFileDir,
+    #[error("Invalid Argument")]
+    InvalidArgument,
+    #[error("File already exists")]
+    Exists,
+    #[error("Bad file descriptor")]
+    BadFileDescriptor,
+    #[error("Too many open files")]
+    TooManyOpenFiles,
+    #[error("Read-only filesystem")]
+    ReadOnly,
+    #[error("Unsupported encoding")]
+    Encoding,
+    #[error("I/O error: {0}")]
+    IO(String),
+    #[error("No inodes left")]
+    NoInodes,
+    #[error("{0}")]
+    Other(String),
+}
+impl ErrorFuse {
+    pub fn io(message: &str) -> Self {
+        Self::IO(message.into())
+    }
+}
+impl From<&ErrorFuse> for libc::c_int {
+    fn from(source: &ErrorFuse) -> Self {
+        match source {
+            ErrorFuse::Unimplemented | ErrorFuse::Encoding => libc::ENOSYS,
+            ErrorFuse::NotDirectory => libc::ENOTDIR,
+            ErrorFuse::NoFileDir => libc::ENOENT,
+            ErrorFuse::NoInodes => libc::ENOSPC,
+            ErrorFuse::Exists => libc::EEXIST,
+            ErrorFuse::ReadOnly => libc::EROFS,
+            ErrorFuse::TooManyOpenFiles => libc::EMFILE,
+            ErrorFuse::InvalidArgument => libc::EINVAL,
+            ErrorFuse::BadFileDescriptor => libc::EBADF,
+            ErrorFuse::IO(_) => libc::EIO,
+            ErrorFuse::Other(_) => libc::EIO,
+        }
+    }
+}
 
 impl From<&super::directory_table::Entry> for DirEntry {
     fn from(e: &super::directory_table::Entry) -> Self {
@@ -13,21 +61,41 @@ impl From<&super::directory_table::Entry> for DirEntry {
             inode: e.inode as u64,
             name: e.name.clone(),
             file_type: if e.is_dir() {
-                fuser::FileType::Directory
+                filesystem::FileType::Directory
             } else {
-                fuser::FileType::RegularFile
+                filesystem::FileType::RegularFile
             },
         }
+    }
+}
+
+pub fn file_attr(ino: u64, size: u64, time: std::time::SystemTime) -> FileAttr {
+    FileAttr {
+        ino,
+        size,
+        blocks: (size as f64 / BLOCK_SIZE as f64).ceil() as u64,
+        atime: time,
+        mtime: time,
+        ctime: time,
+        crtime: time,
+        kind: FileType::RegularFile,
+        perm: 0o644,
+        nlink: 1,
+        uid: 501,
+        gid: 20,
+        rdev: 0,
+        flags: 0,
+        blksize: BLOCK_SIZE,
     }
 }
 
 impl<R: deadpool::managed::Manager> SquashFs<R> {
     /// Remapping to ensure that the root inode is `fuser::FUSE_ROOT_ID`
     fn ino_from_fuse(&self, ino: u64) -> Result<u32, Error> {
-        if ino == fuser::FUSE_ROOT_ID {
+        if ino == filesystem::FUSE_ROOT_ID {
             Ok(self.root_inode)
         } else if ino == self.inode_extra as u64 {
-            let fuse_root: u32 = fuser::FUSE_ROOT_ID.try_into().unwrap();
+            let fuse_root: u32 = filesystem::FUSE_ROOT_ID.try_into().unwrap();
             Ok(fuse_root)
         } else {
             ino.try_into().map_err(|_| Error::InvalidInode)
@@ -35,18 +103,18 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
     }
     /// Remapping to ensure that the root inode is `fuser::FUSE_ROOT_ID`
     pub fn ino_to_fuse(&self, ino: u32) -> u64 {
-        let fuse_root: u32 = fuser::FUSE_ROOT_ID.try_into().unwrap();
+        let fuse_root: u32 = filesystem::FUSE_ROOT_ID.try_into().unwrap();
         if ino == self.root_inode {
-            fuser::FUSE_ROOT_ID
+            filesystem::FUSE_ROOT_ID
         } else if ino == fuse_root {
             self.inode_extra as u64
         } else {
             ino as u64
         }
     }
-    fn getattr_inode(&self, ino: u32) -> Result<fuser::FileAttr, Error> {
+    fn getattr_inode(&self, ino: u32) -> Result<filesystem::FileAttr, Error> {
         if let Some(f) = self.inode_table.files.get(&ino) {
-            Ok(fuser_async::utils::file_attr(
+            Ok(file_attr(
                 self.ino_to_fuse(ino),
                 f.file_size(),
                 UNIX_EPOCH,
@@ -57,7 +125,7 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
                 .directories
                 .get(&ino)
                 .ok_or(Error::DirectoryNotFound)?;
-            Ok(fuser::FileAttr {
+            Ok(filesystem::FileAttr {
                 ino: self.ino_to_fuse(ino),
                 size: 0,
                 blocks: 0,
@@ -66,7 +134,7 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
                 mtime: UNIX_EPOCH,
                 ctime: UNIX_EPOCH,
                 crtime: UNIX_EPOCH,
-                kind: fuser::FileType::Directory,
+                kind: filesystem::FileType::Directory,
                 perm: 0o755,
                 nlink: directory.hard_link_count(),
                 uid: 501,
@@ -83,7 +151,7 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
 impl<
         T: crate::AsyncSeekBufRead,
         R: deadpool::managed::Manager<Type = T, Error = tokio::io::Error> + Send + Sync,
-    > fuser_async::Filesystem for SquashFs<R>
+    > filesystem::Filesystem for SquashFs<R>
 {
     type Error = Error;
     async fn inodes(&self) -> Result<BTreeSet<u64>, Error> {
@@ -100,11 +168,11 @@ impl<
         let mut handles = self.handles.write().await;
         handles
             .remove(&fh)
-            .ok_or(Error::Fuse(fuser_async::Error::BadFileDescriptor))?;
+            .ok_or(Error::Fuse(ErrorFuse::BadFileDescriptor))?;
         Ok(())
     }
 
-    async fn lookup(&self, parent: u64, name: &std::ffi::OsStr) -> Result<fuser::FileAttr, Error> {
+    async fn lookup(&self, parent: u64, name: &std::ffi::OsStr) -> Result<filesystem::FileAttr, Error> {
         let ino = self.ino_from_fuse(parent)?;
         let d = self
             .directory_tables
@@ -116,7 +184,7 @@ impl<
             .ok_or_else(|| Error::FileNotFound(Some(name.into())))?;
         Ok(self.getattr_inode(f.inode)?)
     }
-    async fn getattr(&self, ino_fuse: u64) -> Result<fuser::FileAttr, Error> {
+    async fn getattr(&self, ino_fuse: u64) -> Result<filesystem::FileAttr, Error> {
         let ino = self.ino_from_fuse(ino_fuse)?;
         self.getattr_inode(ino)
     }
@@ -124,14 +192,14 @@ impl<
         &mut self,
         _ino: u64,
         _size: Option<u64>,
-    ) -> Result<fuser::FileAttr, Self::Error> {
+    ) -> Result<filesystem::FileAttr, Self::Error> {
         Err(ErrorFuse::Unimplemented.into())
     }
     async fn readdir(
         &self,
         ino_fuse: u64,
         offset: u64,
-    ) -> Result<Box<dyn Iterator<Item = fuser_async::DirEntry> + Send + Sync + '_>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = DirEntry> + Send + Sync + '_>, Error> {
         let ino = self.ino_from_fuse(ino_fuse).unwrap();
         let d = self
             .directory_tables
@@ -141,7 +209,7 @@ impl<
             d.entries
                 .iter()
                 .skip(offset as usize)
-                .map(fuser_async::DirEntry::from)
+                .map(DirEntry::from)
                 .map(|mut e| {
                     e.inode = self.ino_to_fuse(e.inode as u32);
                     e
@@ -160,7 +228,7 @@ impl<
             let handles = self.handles.read().await;
             *handles
                 .get(&fh)
-                .ok_or(Error::Fuse(fuser_async::Error::BadFileDescriptor))?
+                .ok_or(Error::Fuse(ErrorFuse::BadFileDescriptor))?
         };
         Ok(self
             .read_file(
@@ -188,14 +256,14 @@ impl<
         _mode: u32,
         _umask: u32,
         _flags: i32,
-    ) -> Result<(fuser::FileAttr, u64), Self::Error> {
+    ) -> Result<(filesystem::FileAttr, u64), Self::Error> {
         Err(ErrorFuse::ReadOnly.into())
     }
     async fn mkdir(
         &mut self,
         _parent: u64,
         _name: std::ffi::OsString,
-    ) -> Result<fuser::FileAttr, Self::Error> {
+    ) -> Result<filesystem::FileAttr, Self::Error> {
         Err(ErrorFuse::ReadOnly.into())
     }
 }
