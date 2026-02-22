@@ -6,6 +6,10 @@ More precisely, this crate provides:
 - A [`SquashFs`] structure to read SquashFS archives on top of any asynchronous reader.
 - An implementation of [`Filesystem`] on [`SquashFs`], allowing to easily build [FUSE](https://en.wikipedia.org/wiki/Filesystem_in_Userspace) filesystems using SquashFS archives.
 
+## Reason for this fork
+
+Removed the `fuser` and `fuser_async` dependency.
+
 ## Motivation: multithreaded/async SquashFS reading
 
 The main motivation was to provide a [`squashfuse`](https://github.com/vasi/squashfuse/pull/70#issuecomment-1249788158) implementation that could:
